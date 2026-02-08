@@ -1,6 +1,7 @@
 (function () {
     console.log("recorder.js Start");
     if (document.getElementById("catCatchRecorder")) { return; }
+    const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
 
     // let language = "en";
     let language = navigator.language.replace("-", "_");
@@ -76,6 +77,40 @@
     shadowRoot.appendChild(CatCatch);
     // 页面插入Shadow DOM
     document.getElementsByTagName('html')[0].appendChild(divShadow);
+
+
+    // 处理 sandbox iframe
+    setupIframeProcessing = () => {
+        document.addEventListener('DOMContentLoaded', () => {
+            const processIframe = (iframe) => {
+                if (iframe && iframe.hasAttribute && iframe.hasAttribute('sandbox')) {
+                    const clonedIframe = iframe.cloneNode(true);
+                    clonedIframe.removeAttribute('sandbox');
+                    if (iframe.parentNode) {
+                        iframe.parentNode.replaceChild(clonedIframe, iframe);
+                    }
+                }
+            };
+
+            document.querySelectorAll('iframe').forEach(processIframe);
+
+            const observer = new MutationObserver((mutationsList) => {
+                for (const mutation of mutationsList) {
+                    if (mutation.type === 'childList') {
+                        mutation.addedNodes.forEach(node => {
+                            if (node.nodeName === 'IFRAME') {
+                                processIframe(node);
+                            } else if (node.querySelectorAll) {
+                                node.querySelectorAll('iframe').forEach(processIframe);
+                            }
+                        });
+                    }
+                }
+            });
+            observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
+        });
+    }
+    setupIframeProcessing();
 
     const $tips = CatCatch.querySelector("#tips");
     const $videoList = CatCatch.querySelector("#videoList");
@@ -163,6 +198,20 @@
     });
     // #endregion 获取视频列表
 
+    // 获取兼容的 captureStream 方法
+    function getCaptureStreamMethod(element) {
+        if (element.captureStream) {
+            return element.captureStream.bind(element);
+        }
+        if (element.mozCaptureStream) {
+            return element.mozCaptureStream.bind(element);
+        }
+        if (element.webkitCaptureStream) {
+            return element.webkitCaptureStream.bind(element);
+        }
+        return null;
+    }
+
     CatCatch.querySelector("#start").addEventListener('click', function (event) {
         if (!MediaRecorder.isTypeSupported(option.mimeType)) {
             $tips.innerHTML = i18n("formatNotSupported", "不支持此格式");
@@ -174,12 +223,13 @@
             let stream = null;
             try {
                 const frameRate = +CatCatch.querySelector("#frameRate").value;
-                if (frameRate) {
-                    stream = videoList[index].captureStream(frameRate);
-                } else {
-                    stream = videoList[index].captureStream();
+                const captureStream = getCaptureStreamMethod(videoList[index]);
+                if (!captureStream) {
+                    throw new Error(i18n("recordingNotSupported", "不支持录制"));
                 }
+                stream = frameRate ? captureStream(frameRate) : captureStream();
             } catch (e) {
+                console.log(e);
                 $tips.innerHTML = i18n("recordingNotSupported", "不支持录制");
                 return;
             }
@@ -220,7 +270,13 @@
                 $tips.innerHTML = i18n("recordingFailed", "录制失败");;
                 console.log(event);
             };
-            recorder.start();
+            try {
+                recorder.start();
+            } catch (e) {
+                $tips.innerHTML = i18n("recordingFailed", "录制失败");
+                console.log(e);
+                return;
+            }
             videoList[index].play();
             setTimeout(() => {
                 if (recorder.state === 'recording') {

@@ -229,7 +229,7 @@ function init() {
             }
 
             // 只有一个链接 后缀为m3u8 直接解析
-            if (m3u8Text.split("\n").length == 1 && GetExt(m3u8Text) == "m3u8") {
+            if (m3u8Text.split("\n").length == 1 && (GetExt(m3u8Text) == "m3u8" || GetExt(m3u8Text) == "txt")) {
                 let url = "m3u8.html?url=" + encodeURIComponent(m3u8Text);
                 if (referer) {
                     if (referer.startsWith("http")) {
@@ -427,7 +427,7 @@ hls.on(Hls.Events.LEVEL_LOADED, function (event, data) {
         video.autoplay = false;
         hls.attachMedia(video);
         hls.on(Hls.Events.MEDIA_ATTACHED, function () {
-            video.play();
+            video && video.play();
         });
         video.oncanplay = function () {
             hls.detachMedia(video);
@@ -597,7 +597,15 @@ function parseTs(data) {
         if (data.fragments[i].initSegment && !initData.get(data.fragments[i].initSegment.url)) {
             initSegment = data.fragments[i].initSegment;
             initData.set(data.fragments[i].initSegment.url, true);
-            fetch(data.fragments[i].initSegment.url)
+
+            const options = {};
+            if (data.fragments[i].initSegment.byteRange && data.fragments[i].initSegment.byteRange.length == 2) {
+                const [start, end] = data.fragments[i].initSegment.byteRange;
+                options.headers = {
+                    'Range': `bytes=${start}-${end - 1}`
+                };
+            }
+            fetch(data.fragments[i].initSegment.url, options)
                 .then(response => response.arrayBuffer())
                 .then(function (buffer) {
                     initData.set(data.fragments[i].initSegment.url, buffer);
@@ -627,6 +635,7 @@ function parseTs(data) {
             sn: data.fragments[i].sn,
             cc: data.fragments[i].cc,
             live: data.live,
+            byteRange: data.fragments[i].byteRange
         });
     }
     /* 
@@ -660,7 +669,7 @@ function parseTs(data) {
     if (data.live) {
         autoDown && highlight();
         $("#recorder").show();
-        $("#count").html(i18n.liveHLS);
+        $(".videoInfo #info").html(i18n.liveHLS);
     } else {
         estimateSize(_fragments); // 估算文件大小
         $("#count").append(i18n("m3u8Info", [_fragments.length, secToTime(data.totalduration)]));
@@ -714,7 +723,7 @@ function parseTs(data) {
         let _iv = decryptdata.iv.toString();
         if (_iv != iv && _iv != iv2) {
             iv = "0x" + ArrayBufferToHexString(decryptdata.iv.buffer);
-            $("#tips").append('<div class="key flex"><div>偏移量(IV): <input type="text" value="' + iv + '" spellcheck="false" readonly="readonly" class="offset"></div></div>');
+            $("#tips").append('<div class="key flex"><div>Offset(IV): <input type="text" value="' + iv + '" spellcheck="false" readonly="readonly" class="offset"></div></div>');
         }
     }
 }
@@ -1314,7 +1323,7 @@ function downloadNew(start = 0, end = _fragments.length) {
     if (downSet.mp4 && !down.mapTag) {
         let tempBuffer = null;
         let head = true;
-        transmuxer = new muxjs.mp4.Transmuxer({ keepOriginalTimestamps: true, remux: !downSet.onlyAudio });    // mux.js 对象
+        transmuxer = new muxjs.mp4.Transmuxer({ keepOriginalTimestamps: false, remux: !downSet.onlyAudio });    // mux.js 对象
         transmuxer.on('data', function (segment) {
             if (downSet.onlyAudio && segment.type != "audio") { return; }
             if (head) {

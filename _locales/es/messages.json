@@ -132,7 +132,7 @@
     "message": "Filtro"
   },
   "clear": {
-    "message": "Borrar"
+    "message": "Limpiar"
   },
   "deepSearch": {
     "message": "Buscar"
@@ -376,6 +376,18 @@
   },
   "moreFrequent": {
     "message": "Más frecuentes"
+  },
+  "dopreview": {
+    "message": "previo"
+  },
+  "dopopup": {
+    "message": "ventana emergente"
+  },
+  "winpreview": {
+    "message": "ventana previo"
+  },
+  "winpopup": {
+    "message": "ventana"
   },
   "excludeDuplicateResources": {
     "message": "Excluir los recursos duplicados (demasiados recursos consumen mucha CPU)"
@@ -995,6 +1007,12 @@
   "alwaysSearch": {
     "message": "Activar una búsqueda profunda"
   },
+  "alertimport": {
+  	"message": "importación completada"
+  },
+  "sideurlprotocol": {
+    "message": "Protocolo URL m3u8dl"
+  }, 
   "deleteDuplicateFilenames": {
     "message": "Eliminar nombres de archivo duplicados"
   }

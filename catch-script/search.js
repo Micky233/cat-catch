@@ -334,29 +334,31 @@
     }
 
     // fromCharCode
-    const _fromCharCode = String.fromCharCode;
-    let m3u8Text = '';
-    String.fromCharCode = function () {
-        const data = _fromCharCode.apply(this, arguments);
-        if (data.length < 7) { return data; }
-        CATCH_SEARCH_DEBUG && console.log(data, this, arguments);
-        if (data.substring(0, 7) == "#EXTM3U" || data.includes("#EXTINF:")) {
-            m3u8Text += data;
-            if (m3u8Text.includes("#EXT-X-ENDLIST")) {
-                toUrl(m3u8Text.split("#EXT-X-ENDLIST")[0] + "#EXT-X-ENDLIST");
-                m3u8Text = '';
+    const originalFromCharCode = String.fromCharCode;
+    const proxyFromCharCode = new Proxy(originalFromCharCode, {
+        apply(target, thisArg, argumentsList) {
+            const data = Reflect.apply(target, thisArg, argumentsList);
+            if (data.length < 7) { return data; }
+            CATCH_SEARCH_DEBUG && console.log(data, thisArg, argumentsList);
+            if (data.substring(0, 7) == "#EXTM3U" || data.includes("#EXTINF:")) {
+                m3u8Text += data;
+                if (m3u8Text.includes("#EXT-X-ENDLIST")) {
+                    toUrl(m3u8Text.split("#EXT-X-ENDLIST")[0] + "#EXT-X-ENDLIST");
+                    m3u8Text = '';
+                }
+                return data;
+            }
+            const key = data.replaceAll("\u0010", "");
+            if (key.length == 32) {
+                postData({ action: "catCatchAddKey", key: key, href: location.href, ext: "key" });
             }
             return data;
         }
-        const key = data.replaceAll("\u0010", "");
-        if (key.length == 32) {
-            postData({ action: "catCatchAddKey", key: key, href: location.href, ext: "key" });
-        }
-        return data;
-    }
+    });
+    String.fromCharCode = proxyFromCharCode;
     String.fromCharCode.toString = function () {
-        return _fromCharCode.toString();
-    }
+        return originalFromCharCode.toString();
+    };
 
     // DataView
     // const _DataView = DataView;
@@ -678,7 +680,7 @@
         /**
          * AAAAAAAA... 空数据
          */
-        if (data.action == "catCatchAddKey" && (data.key.startsWith("AAAAAAAAAAAAAAAAAAAA"))) {
+        if (data.action == "catCatchAddKey" && (data.key && data.key.startsWith("AAAAAAAAAAAAAAAAAAAA"))) {
             return;
         }
         if (filter.has(value)) { return false; }
@@ -787,5 +789,35 @@
         } catch (e) {
             CATCH_SEARCH_DEBUG && console.error("Error processing Vimeo stream:", e);
         }
+    }
+
+
+    // 等待页面加载完毕 读取网页中的脚本
+    if (!isRunningInWorker && typeof document !== "undefined") {
+        document.addEventListener("DOMContentLoaded", async function () {
+            const patterns = [
+                /["']((?:(?:https?:)?\/\/)?[^"'\s]*?\.(?:m3u8|mp4|flv)(?:\?[^"'\s]*)?)["']/gi
+            ];
+            document.querySelectorAll('script:not([src])').forEach((script) => {
+                if (script.textContent) {
+                    patterns.forEach((pattern) => {
+                        let match;
+                        while ((match = pattern.exec(script.textContent)) !== null) {
+                            let url = match[1] || match[0];
+                            // 清理URL
+                            url = url.replace(/['"]/g, '').trim();
+                            if (url && !url.startsWith('http')) {
+                                // 补全协议
+                                url = window.location.protocol + '//' + url.replace(/^\/\//, '');
+                            }
+                            if (url && isUrl(url)) {
+                                postData({ action: "catCatchAddMedia", url: url, href: location.href, ext: "m3u8" });
+                            }
+                        }
+                    });
+                }
+            });
+
+        });
     }
 })();

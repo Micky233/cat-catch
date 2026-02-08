@@ -24,7 +24,7 @@
       <li><a href="#anchorCopy" data-i18n="copy" title="copy"></a></li>
       <li><a href="#anchorAria2Rpc" title="Aria2 RPC">Aria2 RPC</a></li>
       <li><a href="#anchorSend2local" data-i18n="send2local" title="send2local"></a></li>
-      <li><a href="#anchorM3u8dl" title="URL Protocol m3u8dl">URL Protocol m3u8dl</a></li>
+      <li><a href="#anchorM3u8dl" data-i18n="sideurlprotocol" title="URL Protocol m3u8dl"></a></li>
       <li><a href="#anchorInvokeApp" data-i18n="invokeApp" title="invokeApp"></a></li>
       <li><a href="#anchorReplaceTags" data-i18n="replaceTags" title="replaceTags"></a></li>
       <li><a href="#anchorDownloader" data-i18n="downloader" title="downloader"></a></li>
@@ -205,7 +205,7 @@
           <textarea id="copyM3U8" save="input" type="text" class="width100"></textarea>
         </div>
         <div class="item" style="margin-top: 10px;">
-          <div>DASH mpb</div>
+          <div>DASH mpd</div>
           <textarea id="copyMPD" save="input" type="text" class="width100"></textarea>
         </div>
         <div class="item" style="margin-top: 10px;">
@@ -340,7 +340,7 @@
 
     <!-- m3u8DL -->
     <section id="anchorM3u8dl">
-      <h1 class="optionsTitle">URL Protocol m3u8dl</h1>
+      <h1 class="optionsTitle" data-i18n="sideurlprotocol">URL Protocol m3u8dl</h1>
       <div class="optionBox" id="m3u8dlOption">
         <span class="explain">
           <a href="https://github.com/nilaoda/N_m3u8DL-CLI" target="_blank">N_m3u8DL-CLI</a> / <a
@@ -732,10 +732,10 @@
             <div data-i18n="selectWebpage" style="margin-left: 2rem;"></div>
             <div class="switch switchSelect">
               <select id="popupMode" class="select" save="select">
-                <option value="0">preview</option>
-                <option value="1">popup</option>
-                <option value="2">window preview</option>
-                <option value="3">window popup</option>
+                <option value="0" data-i18n="dopreview"></option>
+                <option value="1" data-i18n="dopopup"></option>
+                <option value="2" data-i18n="winpreview"></option>
+                <option value="3" data-i18n="winpopup"></option>
               </select>
             </div>
           </div>
