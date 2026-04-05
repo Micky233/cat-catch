@@ -198,7 +198,8 @@
       <div class="optionBox">
         <span class="explain">
           <p data-i18n-outer="copyTip"></p><br />
-          <a href="https://o2bmm.gitbook.io/cat-catch/docs/tag" target="_blank" data-i18n="replaceKeywordList"></a><br /><br />
+          <a href="https://o2bmm.gitbook.io/cat-catch/docs/tag" target="_blank"
+            data-i18n="replaceKeywordList"></a><br /><br />
         </span>
         <div class="item">
           <div>HLS m3u8</div>
@@ -329,6 +330,12 @@
               <a href="https://o2bmm.gitbook.io/cat-catch/docs/tag" target="_blank" data-i18n="replaceKeywordList"></a>
             </div>
             <textarea id="send2localBody" save="input" class="width100 break-all" rows="3"></textarea>
+          </div>
+
+          <div class="item">
+            <div data-i18n="requestHeaders"></div>
+            <input id="send2localHeaders" save="input" type="text" class="width100"
+              placeholder='{"header1":"value1","header2":"value2"}'>
           </div>
 
           <div class="flex-end">
@@ -750,6 +757,16 @@
             </div>
           </div>
 
+          <div class="item">
+            <div data-i18n="iframeFFmpeg"></div>
+            <div class="switch">
+              <label class="switchLabel switchRadius">
+                <input type="checkbox" id="iframeFFmpeg" save="click" class="switchInput" />
+                <span class="switchRound switchRadius"><em class="switchRoundBtn switchRadius"></em></span>
+              </label>
+            </div>
+          </div>
+
         </div>
         <div class="flex-end">
           <button type="button" class="resetOption" data-i18n="resetSettings"></button>
@@ -846,9 +863,10 @@
             <div data-i18n="mqttQos"></div>
             <div class="switch switchSelect">
               <select id="mqttQos" class="select" save="select">
-                <option value="0">0 <span data-i18n="mqttQos0"></span></option>
-                <option value="1">1 <span data-i18n="mqttQos1"></span></option>
-                <option value="2">2 <span data-i18n="mqttQos2"></span></option>
+                <option value="0" data-i18n="mqttQos0"></option>
+                <option value="1" data-i18n="mqttQos1"></option>
+                <option value="2" data-i18n="mqttQos2"></option>
+                </option>
               </select>
             </div>
             <div class="help-text" data-i18n="mqttQosHelp"></div>
