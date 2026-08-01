@@ -9,9 +9,9 @@ Build:
 lib/mpd-parser.min.js
 Source: https://github.com/videojs/mpd-parser
 License: Apache-2.0 license
-Version: 1.3.1
+Version: 1.4.1
 Download:
-`https://github.com/videojs/mpd-parser/releases/tag/v1.3.1` -> `mpd-parser.min.js`
+`https://github.com/videojs/mpd-parser/releases/tag/v1.4.1` -> `mpd-parser.min.js`
 
 lib/jquery.qrcode.min.js
 Source: https://github.com/jeromeetienne/jquery-qrcode
@@ -31,16 +31,16 @@ Download:
 lib/hls.min.js
 Source: https://github.com/video-dev/hls.js
 License: Apache-2.0 license
-Version: 1.6.15
+Version: 1.6.16
 Download:
-`https://github.com/video-dev/hls.js/releases/tag/v1.6.15` -> `release.zip` -> `dist/hls.min.js`
+`https://github.com/video-dev/hls.js/releases/tag/v1.6.16` -> `release.zip` -> `dist/hls.min.js`
 
 lib/mqtt.min.js
 Source: https://github.com/mqttjs/MQTT.js
 License: MIT license
-Version: 5.14.1
+Version: 5.15.2
 Build:
-`https://github.com/mqttjs/MQTT.js/releases/tag/v5.14.1`
+`https://github.com/mqttjs/MQTT.js/releases/tag/v5.15.2`
 `Source code` -> `npm run build` -> `dist/mqtt.min.js`
 
 lib/jquery.json-viewer.js

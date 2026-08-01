@@ -7,10 +7,11 @@
   <link rel="stylesheet" type="text/css" href="css/public.css" media="all" />
   <link rel="stylesheet" type="text/css" href="css/options.css" media="all" />
   <script src="lib/jquery.min.js"></script>
+  <script src="js/polyfill.js"></script>
   <script src="js/init.js"></script>
-  <script src="js/firefox.js"></script>
   <script src="lib/mux.min.js"></script>
   <script src="js/function.js"></script>
+  <script src="js/templates.js"></script>
 </head>
 
 <body>
@@ -90,6 +91,7 @@
           <div id="count"></div>
           <div id="info"></div>
           <div id="estimateFileSize"></div>
+          <div id="estimateBitrate"></div>
         </div>
 
         <!-- 切片列表和部分操作按钮 可折叠 -->
@@ -158,6 +160,15 @@
                   <button id="tsAddArg" data-i18n="getParameters"></button>
                   <button id="setRequestHeaders" data-i18n="setRequestHeaders"></button>
                   <button id="sendFfmpeg" class="hide button" data-i18n="sendFfmpeg"></button>
+                  <label class="inline-flex textColor">
+                    <input type="checkbox" id="M3u8HideDownloadedSegments" save="change" />
+                    <i18n>hideDownloadedSegments</i18n>
+                  </label>
+                  <p>
+                    <input type="text" data-i18n-placeholder="regularFilterPlaceholder" id="regular"
+                      class="m3u8Regular">
+                    <button id="invertSelection" data-i18n="invertSelection"></button>
+                  </p>
                 </div>
                 <button id="moreFeatures" data-i18n="moreFeatures"></button>
               </div>
@@ -187,7 +198,8 @@
 
             <!-- 自定义文件名 -->
             <input type="text" id="customFilename" spellcheck="false" data-i18n-placeholder="customSaveFileName"
-              size="30" />
+              size="30" list="name-options" />
+            <datalist id="name-options"></datalist>
             <!-- 下载线程 -->
             <div id="threadDiv" class="textColor">
               <p data-i18n-outer="downloadThreads"></p> <input type="number" value="6" id="thread" spellcheck="false"
@@ -212,6 +224,10 @@
             <!-- 另存为 -->
             <label class="m3u8checkbox textColor">
               <p data-i18n-outer="saveAs"></p><input type="checkbox" id="saveAs" save="change" />
+            </label>
+            <!-- 预处理 -->
+            <label class="m3u8checkbox textColor">
+              <p data-i18n-outer="dataPreprocessing"></p><input type="checkbox" id="dataPreprocessing" save="change" />
             </label>
             <!-- 跳过解密 -->
             <div id="skipDecryptDiv" class="hide">

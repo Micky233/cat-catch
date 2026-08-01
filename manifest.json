@@ -12,8 +12,8 @@
   },
   "description": "__MSG_description__",
   "icons": {
-    "64": "img/icon.png",
-    "128": "img/icon128.png"
+    "64": "/img/icon.png",
+    "128": "/img/icon128.png"
   },
   "manifest_version": 3,
   "minimum_chrome_version": "93",
@@ -32,7 +32,8 @@
     "alarms",
     "declarativeNetRequest",
     "scripting",
-    "sidePanel"
+    "sidePanel",
+    "contextMenus"
   ],
   "commands": {
     "_execute_action": {},
@@ -56,6 +57,9 @@
     },
     "deepSearch": {
       "description": "__MSG_deepSearch__"
+    },
+    "preview": {
+      "description": "__MSG_preview__"
     }
   },
   "host_permissions": [
@@ -76,6 +80,6 @@
     }
   ],
   "default_locale": "en",
-  "version": "2.6.7",
+  "version": "2.7.2",
   "incognito": "split"
 }

@@ -16,16 +16,6 @@
             this.x = 0;
             this.y = 0;
 
-            // 初始化语言
-            if (window.CatCatchI18n) {
-                if (!window.CatCatchI18n.languages.includes(this.language)) {
-                    this.language = this.language.split("-")[0];
-                    if (!window.CatCatchI18n.languages.includes(this.language)) {
-                        this.language = "en";
-                    }
-                }
-            }
-
             // 初始化组件
             // 删除iframe sandbox属性 避免 issues #576
             this.setupIframeProcessing();
@@ -140,6 +130,7 @@
                 <label><input type="checkbox" id="autoToBuffered" ${checkboxStyle}><span data-i18n="autoToBuffered">自动跳转缓冲尾</span></label>
                 <label><input type="checkbox" id="checkHead" ${checkboxStyle}><span data-i18n="checkHead">清理多余头部数据</span></label>
                 <label><input type="checkbox" id="completeClearCache" ${localStorage.getItem("CatCatchCatch_completeClearCache") || ""} ${checkboxStyle}><span data-i18n="completeClearCache">下载完成后清空数据</span></label>
+                <label><input type="checkbox" id="save1GB" ${localStorage.getItem("CatCatchCatch_save1GB") || ""} ${checkboxStyle}><span data-i18n="save1GB">每1GB保存一次</span></label>
                 <details>
                     <summary data-i18n="fileName" id="summary">文件名设置</summary>
                     <div style="font-weight:bold;"><span data-i18n="fileName">文件名</span>: </div><div id="fileName"></div>
@@ -304,6 +295,11 @@
             const completeClearCache = this.catCatch.querySelector("#completeClearCache");
             if (completeClearCache) completeClearCache.addEventListener('click', this.handleCompleteClearCache.bind(this));
 
+            const save1GB = this.catCatch.querySelector("#save1GB");
+            if (save1GB) save1GB.addEventListener('click', (event) => {
+                localStorage.setItem("CatCatchCatch_save1GB", event.target.checked ? "checked" : "");
+            });
+
             // 自动跳转到缓冲节点
             // this.autoToBufferedFlag = true;
             const autoToBuffered = this.catCatch.querySelector("#autoToBuffered");
@@ -327,12 +323,12 @@
             if (window.CatCatchI18n) {
                 this.catCatch.querySelectorAll('[data-i18n]').forEach((element) => {
                     if (element && element.dataset && element.dataset.i18n) {
-                        element.innerHTML = window.CatCatchI18n[element.dataset.i18n][this.language] || element.innerHTML;
+                        element.innerHTML = window.CatCatchI18n[element.dataset.i18n] || element.innerHTML;
                     }
                 });
                 this.catCatch.querySelectorAll('[data-i18n-outer]').forEach((element) => {
                     if (element && element.dataset && element.dataset.i18nOuter) {
-                        element.outerHTML = window.CatCatchI18n[element.dataset.i18nOuter][this.language] || element.outerHTML;
+                        element.outerHTML = window.CatCatchI18n[element.dataset.i18nOuter] || element.outerHTML;
                     }
                 });
             }
@@ -346,7 +342,7 @@
          */
         i18n(key, original = "") {
             if (!window.CatCatchI18n || !key || !window.CatCatchI18n[key]) { return original; }
-            return window.CatCatchI18n[key][this.language] || original;
+            return window.CatCatchI18n[key] || original;
         }
 
         /**
@@ -436,7 +432,7 @@
                 this.clearCache();
                 this.enable = false;
                 this.catCatch.style.display = "none";
-                window.postMessage({ action: "catCatchToBackground", Message: "script", script: "catch.js", refresh: false });
+                window.postMessage({ action: "catCatchCloseScript", script: "catch.js" });
             }
         }
 
@@ -580,6 +576,11 @@
 
                                 if (this.enable && argumentsList[0]) {
                                     this.mediaSize += argumentsList[0].byteLength || 0;
+                                    if (this.mediaSize >= 1024 * 1024 * 1024 && localStorage.getItem("CatCatchCatch_save1GB") == "checked") {
+                                        this.catchDownload();
+                                        this.clearCache();
+
+                                    }
                                     if (this.tips) {
                                         this.tips.innerHTML = this.i18n("capturingData", "捕获数据中...") + ": " + this.byteToSize(this.mediaSize);
                                     }

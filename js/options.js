@@ -176,7 +176,7 @@ $("[save='input']").on("input", function () {
 });
 // 调试模式 使用网页标题做文件名 使用PotPlayer预览 显示网站图标 刷新自动清理
 $("[save='click']").bind("click", function () {
-    chrome.storage.sync.set({ [this.id]: $(this).prop('checked') });
+    chrome.storage.sync.set({ [this.id]: this.checked });
 });
 // [save='select'] 元素 储存
 $("[save='select']").on("change", function () {
@@ -381,6 +381,7 @@ function SaveGetVal(Obj) {
 }
 
 // 保存 后缀 类型 正则 配置
+let debounce = undefined;
 function Save(option, sec = 0) {
     clearTimeout(debounce);
     debounce = setTimeout(() => {

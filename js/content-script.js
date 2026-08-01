@@ -2,6 +2,7 @@
     var _videoObj = [];
     var _videoSrc = [];
     var _key = new Set();
+    var m3u8Text = new Map();
     chrome.runtime.onMessage.addListener(function (Message, sender, sendResponse) {
         if (chrome.runtime.lastError) { return; }
         // 获取页面视频对象
@@ -45,7 +46,8 @@
                     loop: video.loop,
                     speed: video.playbackRate,
                     muted: video.muted,
-                    type: video.tagName.toLowerCase()
+                    type: video.tagName.toLowerCase(),
+                    videoStatus: videoObj.map(v => v.paused ? 1 : 0)
                 });
                 return true;
             }
@@ -54,7 +56,9 @@
         }
         // 速度控制
         if (Message.Message == "speed") {
-            _videoObj[Message.index].playbackRate = Message.speed;
+            if (_videoObj[Message.index]?.playbackRate !== undefined) {
+                _videoObj[Message.index].playbackRate = Message.speed;
+            }
             return true;
         }
         // 画中画
@@ -83,34 +87,41 @@
         }
         // 播放
         if (Message.Message == "play") {
-            _videoObj[Message.index].play();
+            _videoObj[Message.index]?.play();
             return true;
         }
         // 暂停
         if (Message.Message == "pause") {
-            _videoObj[Message.index].pause();
+            _videoObj[Message.index]?.pause();
             return true;
         }
         // 循环播放
         if (Message.Message == "loop") {
-            _videoObj[Message.index].loop = Message.action;
+            if (_videoObj[Message.index]?.loop !== undefined) {
+                _videoObj[Message.index].loop = Message.action;
+            }
             return true;
         }
         // 设置音量
         if (Message.Message == "setVolume") {
-            _videoObj[Message.index].volume = Message.volume;
+            if (_videoObj[Message.index]?.volume !== undefined) {
+                _videoObj[Message.index].volume = Message.volume;
+            }
             sendResponse("ok");
             return true;
         }
         // 静音
         if (Message.Message == "muted") {
-            _videoObj[Message.index].muted = Message.action;
+            if (_videoObj[Message.index]?.muted !== undefined) {
+                _videoObj[Message.index].muted = Message.action;
+            }
             return true;
         }
         // 设置视频进度
         if (Message.Message == "setTime") {
-            const time = Message.time * _videoObj[Message.index].duration / 100;
-            _videoObj[Message.index].currentTime = time;
+            if (_videoObj[Message.index]?.currentTime !== undefined && _videoObj[Message.index]?.duration !== undefined) {
+                _videoObj[Message.index].currentTime = Message.time * _videoObj[Message.index].duration / 100;
+            }
             sendResponse("ok");
             return true;
         }
@@ -169,6 +180,21 @@
             sendResponse(document.documentElement.outerHTML);
             return true;
         }
+        if (Message.Message == "getM3u8Text") {
+            if (Message.url && m3u8Text.has(Message.url)) {
+                sendResponse(m3u8Text.get(Message.url));
+                return true;
+            }
+            sendResponse("");
+            return true;
+        }
+        if (Message.Message == "getM3u8Cache") {
+            fetch(Message.url, { method: "GET", cache: "force-cache" })
+                .then(response => response.text())
+                .then(text => sendResponse({ success: true, data: text }))
+                .catch(() => sendResponse({ success: false, error: "Failed to fetch" }));
+            return true;
+        }
     });
 
     // Heart Beat
@@ -193,19 +219,41 @@
         time += sec;
         return time;
     }
+    const isFirefox = navigator.userAgent.includes('Firefox');
+    const sendAddMedia = (data) => {
+        chrome.runtime.sendMessage({
+            Message: "addMedia",
+            url: data.url,
+            href: data.href ?? location.href,
+            extraExt: data.ext,
+            mime: data.mime,
+            requestHeaders: { referer: data.referer },
+            requestId: data.requestId
+        });
+    };
     window.addEventListener("message", (event) => {
-        if (!event.data || !event.data.action) { return; }
+        const action = ["catCatchAddMedia", "catCatchAddKey", "catCatchFFmpeg", "catCatchFFmpegResult", "catCatchCloseScript"];
+        if (!event.data || !event.data.action || event.origin !== window.location.origin || !action.includes(event.data.action)) { return; }
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+
         if (event.data.action == "catCatchAddMedia") {
             if (!event.data.url) { return; }
-            chrome.runtime.sendMessage({
-                Message: "addMedia",
-                url: event.data.url,
-                href: event.data.href ?? event.source.location.href,
-                extraExt: event.data.ext,
-                mime: event.data.mime,
-                requestHeaders: { referer: event.data.referer },
-                requestId: event.data.requestId
-            });
+
+            /*
+             * firefox 不允许直接下载跨域blob内容
+             * fetch获取文本内容并缓存到m3u8Text中，供 m3u8.html调用获取。
+             */
+            if (event.data.url.startsWith("blob:") && isFirefox) {
+                fetch(event.data.url)
+                    .then(response => response.text())
+                    .then(text => {
+                        m3u8Text.set(event.data.url, text);
+                        sendAddMedia(event.data);
+                    });
+                return;
+            }
+            sendAddMedia(event.data);
         }
         if (event.data.action == "catCatchAddKey") {
             let key = event.data.key;
@@ -246,15 +294,12 @@
             if (!event.data.state || !event.data.tabId) { return; }
             chrome.runtime.sendMessage({ Message: "catCatchFFmpegResult", ...event.data });
         }
-        if (event.data.action == "catCatchToBackground") {
-            delete event.data.action;
-            chrome.runtime.sendMessage(event.data);
+        if (event.data.action == "catCatchCloseScript") {
+            if (!event.data.script || !event.isTrusted) { return; }
+            chrome.runtime.sendMessage({ Message: "closeScript", ...event.data });
         }
-        // if (event.data.action == "catCatchDashDRMMedia") {
-        //     // TODO DRM Media
-        //     console.log("DRM Media", event);
-        // }
-    }, false);
+
+    }, { capture: true });
 
     function ArrayToBase64(data) {
         try {

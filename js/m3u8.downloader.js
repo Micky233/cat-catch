@@ -1,11 +1,12 @@
 class Downloader {
+    MAX_RETRIES = 3; // 最大重试次数
     constructor(fragments = [], thread = 6) {
         this.fragments = fragments;      // 切片列表
         this.allFragments = fragments;   // 储存所有原始切片列表
         this.thread = thread;            // 线程数
         this.events = {};                // events
-        this.decrypt = null;             // 解密函数
-        this.transcode = null;           // 转码函数
+        this.pipeline = [];              // 数据处理管线
+        this.autoRetry = false;          // 默认不会自动重试
         this.init();
     }
     /**
@@ -16,7 +17,7 @@ class Downloader {
         this.buffer = [];                // 储存的buffer
         this.state = 'waiting';          // 下载器状态 waiting running done abort
         this.success = 0;                // 成功下载数量
-        this.errorList = new Set();      // 下载错误的列表
+        this.errorIndexes = new Set();      // 下载错误的列表
         this.buffersize = 0;             // 已下载buffer大小
         this.duration = 0;               // 已下载时长
         this.pushIndex = 0;              // 推送顺序下载索引
@@ -48,18 +49,45 @@ class Downloader {
         }
     }
     /**
-     * 设定解密函数
-     * @param {Function} callback 
+     * 移除监听器
+     * @param {string} eventName 监听名
+     * @param {Function} callBack 回调函数（可选，若不传则移除所有该事件的监听器）
      */
-    setDecrypt(callback) {
-        this.decrypt = callback;
+    off(eventName, callBack) {
+        if (!this.events[eventName]) return;
+        if (callBack) {
+            this.events[eventName] = this.events[eventName].filter(cb => cb !== callBack);
+        } else {
+            delete this.events[eventName];
+        }
     }
     /**
-     * 设定转码函数
-     * @param {Function} callback 
+     * 注册一个处理步骤
+     * @param {Function} fn      处理函数 (buffer, fragment) => buffer
+     * @param {string}   name    步骤名称（可选，用于触发 pipe:name 事件）
+     * @returns {Downloader}     返回自身，支持链式调用
      */
-    setTranscode(callback) {
-        this.transcode = callback;
+    use(fn, name = '') {
+        this.pipeline.push({ fn, name });
+        return this;
+    }
+    /**
+     * 移除某个处理步骤
+     * @param {string|Function} target  步骤名称或函数引用
+     */
+    removeProcessor(target) {
+        if (typeof target === 'string') {
+            this.pipeline = this.pipeline.filter(p => p.name !== target);
+        } else {
+            this.pipeline = this.pipeline.filter(p => p.fn !== target);
+        }
+    }
+    /**
+     * 检查是否有某个步骤存在
+     * @param {string}   name 步骤名称
+     */
+    findPipeline(name) {
+        return this.pipeline.some(p => p.name === name);
     }
     /**
      * 停止下载 没有目标 停止所有线程
@@ -67,10 +95,10 @@ class Downloader {
      */
     stop(index = undefined) {
         if (index !== undefined) {
-            this.controller[index] && this.controller[index].abort();
+            this.controller[index] && this.controller[index]?.abort();
             return;
         }
-        this.controller.forEach(controller => { controller.abort() });
+        this.controller.forEach(controller => { controller?.abort() });
         this.state = 'abort';
     }
     /**
@@ -79,13 +107,13 @@ class Downloader {
      * @returns {boolean}
      */
     isErrorItem(fragment) {
-        return this.errorList.has(fragment);
+        return this.errorIndexes.has(fragment.index);
     }
     /**
      * 返回所有错误列表
      */
     get errorItem() {
-        return this.errorList;
+        return [...this.errorIndexes].map(index => this.fragments[index]);
     }
     /**
      * 按照顺序推送buffer数据
@@ -163,7 +191,7 @@ class Downloader {
      * @returns {string}
      */
     get mapTag() {
-        if (this.fragments[0].initSegment && this.fragments[0].initSegment.url) {
+        if (this.fragments.length && this.fragments[0].initSegment?.url) {
             return this.fragments[0].initSegment.url;
         }
         return "";
@@ -183,7 +211,7 @@ class Downloader {
     downloader(fragment = null) {
         if (this.state === 'abort') { return; }
         // 是否直接下载对象
-        const directDownload = !!fragment;
+        const directDownload = fragment !== null;
 
         // 非直接下载对象 从this.fragments获取下一条资源 若不存在跳出
         if (!directDownload && !this.fragments[this.index]) { return; }
@@ -212,6 +240,7 @@ class Downloader {
         // 存在byteRange 添加请求头
         if (fragment.byteRange && fragment.byteRange.length == 2) {
             options.headers = {
+                ...options.headers,
                 'Range': `bytes=${fragment.byteRange[0]}-${fragment.byteRange[1] - 1}`
             };
         }
@@ -222,7 +251,10 @@ class Downloader {
                 if (!response.ok) {
                     throw new Error(response.status, { cause: 'HTTPError' });
                 }
-                const reader = response.body.getReader();
+                const reader = response.body?.getReader();
+                if (!reader) {
+                    throw new Error('Response body is not readable', { cause: 'EmptyBody' });
+                }
                 const contentLength = parseInt(response.headers.get('content-length')) || 0;
                 fragment.contentType = response.headers.get('content-type') ?? 'null';
                 let receivedLength = 0;
@@ -252,15 +284,14 @@ class Downloader {
                 }
                 return pump();
             })
-            .then(buffer => {
+            // 数据处理函数
+            .then(async (buffer) => {
                 this.emit('rawBuffer', buffer, fragment);
-                // 存在解密函数 调用解密函数 否则直接返回buffer
-                return this.decrypt ? this.decrypt(buffer, fragment) : buffer;
-            })
-            .then(buffer => {
-                this.emit('decryptedData', buffer, fragment);
-                // 存在转码函数 调用转码函数 否则直接返回buffer
-                return this.transcode ? this.transcode(buffer, fragment) : buffer;
+                for (const { fn, name } of this.pipeline) {
+                    buffer = await fn(buffer, fragment);
+                    this.emit(name ? `pipe:${name}` : 'processedBuffer', buffer, fragment);
+                }
+                return buffer;
             })
             .then(buffer => {
                 // 储存解密/转码后的buffer
@@ -272,7 +303,7 @@ class Downloader {
                 this.duration += fragment.duration ?? 0;
 
                 // 下载对象来自错误列表 从错误列表内删除
-                this.errorList.has(fragment) && this.errorList.delete(fragment);
+                this.errorIndexes.delete(fragment.index);
 
                 // 推送顺序下载
                 this.sequentialPush();
@@ -290,11 +321,21 @@ class Downloader {
                     this.emit('stop', fragment, error);
                     return;
                 }
+                if (this.autoRetry) {
+                    fragment.retryCount = (fragment.retryCount || 0) + 1;
+                    if (fragment.retryCount <= this.MAX_RETRIES) {
+                        this.emit('retry', fragment, error);
+                        // this.downloader(fragment);
+                        // 延迟重试
+                        setTimeout(() => this.downloader(fragment), 500 * fragment.retryCount);
+                        return;
+                    }
+                }
                 this.emit('downloadError', fragment, error);
-
                 // 储存下载错误切片
-                !this.errorList.has(fragment) && this.errorList.add(fragment);
+                this.errorIndexes.add(fragment.index);
             }).finally(() => {
+                this.controller[fragment.index] = null;
                 this.running--;
                 // 下载下一个切片
                 if (!directDownload && this.index < this.fragments.length) {
@@ -333,8 +374,7 @@ class Downloader {
         this.allFragments = [];
         this.thread = 6;
         this.events = {};
-        this.decrypt = null;
-        this.transcode = null;
+        this.pipeline = [];
         this.init();
     }
 }
